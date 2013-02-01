@@ -1,4 +1,4 @@
-module ActionDispatch
+module ActionController
   class MiddlewareStack < Array
 
     # this class will wrap around each Rack-based middleware and take timing snapshots of how long
@@ -60,18 +60,19 @@ module ActionDispatch
 
       # overrding the built-in Middleware.build and adding a RackTimer wrapper class
       def build(app)
-        RackTimer.new(klass.new(app, *args, &block))
-      end    
+        if block
+          RackTimer.new klass.new(app, *build_args, &block)
+        else
+          RackTimer.new klass.new(app, *build_args)
+        end
+      end
 
     end
 
     # overriding this in order to wrap the incoming app in a RackTimer, which gives us timing on the final
     # piece of Middleware, which for Rails is the routing plus the actual Application action
-    def build(app = nil, &block)
-      app ||= block
-      raise "MiddlewareStack#build requires an app" unless app
-      reverse.inject(RackTimer.new(app)) { |a, e| e.build(a) }
+    def build(app)
+      active.reverse.inject(RackTimer.new(app)) { |a, e| e.build(a) }
     end
-
   end
 end
